@@ -1,0 +1,71 @@
+Archive:  xseipe00.zip
+  inflating: parse.php               
+  inflating: readme1.pdf             
+  inflating: test.php                
+
+Skript parse.php nacte ze standardniho vstupu zdrojovy kod v IPPcode21,
+zkontroluje lexikalni a syntaktickou spravnost kodu a vypise na standardni
+vystup XML reprezentaci programu.
+
+--help  
+        Vypise na standardni vystup napovedu skriptu (nenacita zadni vstup).
+
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>IPP - testy</title>
+</head>
+<body>
+
+<h1>Výsledky testov projektu IPP</h1>
+
+
+Skript test.php slouzi pro automaticke testovani aplikace parse.php a interpret.py. Skript projde 
+zadany adresar s testy a vyuzije je pro automaticke otestovani spravne funkcnosti jednoho ci obou 
+predchozich skriptu vcetne vygenerovani prehledneho souhrnu v HTML 5 na standardni vystup. 
+
+
+--help  
+                Vypise na standardni vystup napovedu skriptu (nenacita zadni vstup).
+                
+--directory=path  
+                Testy bude hledat v zadanem adresari (chybi-li tento parametr, 
+                tak skript prochazi aktualni adresar).
+                
+--recursive  
+                Testy bude hledat nejen v zadanem adresari, ale i rekurzivne ve vsech 
+                jeho podadresarich.
+                
+--parse-script=file  
+                Soubor se skriptem v PHP 7.4 pro analyzu zdrojoveho kodu 
+                v IPPcode21 (chybi-li tento parametr, tak implicitni hodnotou je parse.php 
+                ulozeny v aktualnim adresari).
+                
+--int-script=file  
+                Soubor se skriptem v Python 3.8 pro interpret XML reprezentace kodu
+                v IPPcode21 (chybi-li tento parametr, tak implicitni hodnotou je interpret.py ulozeny
+                v aktualnim adresari).
+                
+--parse-only  
+                Bude testovan pouze skript pro analyzu zdrojoveho kodu v IPPcode21 (tento
+                parametr se nesmi kombinovat s parametry --int-only a --int-script), vystup s referencnim
+                vystupem (soubor s priponou out) porovnavejte nastrojem A7Soft JExamXML (viz [2]).
+                
+--int-only  
+                Bude testovan pouze skript pro interpret XML reprezentace kodu v IPPcode21
+                (tento parametr se nesmi kombinovat s parametry --parse-only a --parse-script). Vstupni
+                program reprezentovan pomoci XML bude v souboru s priponou src.
+                
+--jexamxml=file  
+                Soubor s JAR balickem s nastrojem A7Soft JExamXML. Je-li parametr
+                vynechan uvazuje se implicitni umisteni /pub/courses/ipp/jexamxml/jexamxml.jar na serveru 
+                Merlin, kde bude test.php hodnocen.
+                
+--jexamcfg=file  
+                Soubor s konfiguraci nastroje A7Soft JExamXML. Je-li parametr vynechan
+                uvazuje se implicitni umisteni /pub/courses/ipp/jexamxml/options na serveru Merlin, kde
+                bude test.php hodnocen.
+
+
