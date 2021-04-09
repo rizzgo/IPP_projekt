@@ -8,14 +8,14 @@ class System:
     
     def __init__(self):
         self.frames = Frames()
-        self.datastack = Stack()
+        self.datastack = DataStack()
         self.callstack = Stack()
         self.program = Program()
         self.instruction = Instruction()
 
     def run_interpret(self):
         while is_instruction(self.program.instruction_ptr, self.program.length): 
-            instruction = program[self.program.instruction_ptr]
+            instruction = self.program.instructions[self.program.instruction_ptr]
             self.instruction.opcode = instruction.attrib['opcode']
             self.instruction.arguments = list(instruction)
             
@@ -146,24 +146,37 @@ def i_defvar(system):
     system.frames.def_var(arg1.text)
 
 def i_call(system):
-    #callstack.push(instruction_ptr)
-    #program.find(opcode=LABEL)
-    #   instruction.arg[0].text == arguments[0].text
-    #instruction_ptr = int(instruction["order"])
-    pass
+    system.callstack.push(system.program.instruction_ptr)
     
+    for instruction in system.program.instructions:
+       if instruction.attrib["opcode"] == "LABEL":
+            if instruction[0].text == system.instruction.arguments[0].text:
+                system.program.instruction_ptr = int(instruction.attrib["order"])
+                break
+
 def i_return(system):
-    #instruction_ptr = callstack.pop()
-    pass
+    system.program.instruction_ptr = system.callstack.pop()
 
 def i_pushs(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+
+    system.datastack.push(arg1.attrib["type"], arg1.text)
 
 def i_pops(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+
+    data = system.datastack.pop()
+    data_type = data["type"]
+    data_value = data["value"]
+    system.frames.update_var(arg1, data_type, data_value)
 
 def i_add(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+    arg2 = system.instruction.arguments[1]
+    arg3 = system.instruction.arguments[2]
+
+    if arg2.attrib["type"] == "int" and arg3.attrib["type"] == "int":
+        pass
 
 def i_sub(system):
     pass
@@ -263,8 +276,12 @@ def value_error():
     sys.exit(56)
 
 def parse_error():
-    print("ERROR: invalid XML", file=sys.stderr)
-    sys.exit(31) #or 32
+    print("ERROR: invalid XML format", file=sys.stderr)
+    sys.exit(31)
+
+def structure_error(arg):
+    print("ERROR: invalid XML structure", file=sys.stderr)
+    sys.exit(32)
     
 def file_error():
     print("ERROR: invalid file", file=sys.stderr)
@@ -300,7 +317,7 @@ def parse_souce(source_path):
             else:
                 sys.exit()
         else:
-            parsed_source = ET.parse(sys.stdin.read())
+            parsed_source = ET.parse(sys.stdin)
     except SystemExit:
         file_error()
     except:
@@ -365,7 +382,7 @@ def interpret_instruction(system):
         "BREAK": i_break
     }
         
-    switcher.get(system.instruction.opcode)(system)
+    switcher.get(system.instruction.opcode, structure_error)(system)
 
 # script
 
