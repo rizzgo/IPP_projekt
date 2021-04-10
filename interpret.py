@@ -62,7 +62,11 @@ class System:
             "BREAK": i_break
         }
             
-        switcher.get(self.instruction.opcode, structure_error)(self)
+        function = switcher.get(self.instruction.opcode)
+        if function:
+            function(self)
+        else:
+            structure_error()
 
 class Program:
 
@@ -87,6 +91,7 @@ class Instruction:
             arg = ProgramData()
             arg.type = argument.attrib["type"]
             arg.value = argument.text
+            arg.convert_type()
             self.arguments.append(arg)
 
 class ProgramData:
@@ -94,6 +99,26 @@ class ProgramData:
     def __init__(self, data_type="", data_value=""):
         self.type = data_type
         self.value = data_value
+
+    def convert_type(self):
+        if self.type == "int":
+            try:
+                self.value = int(self.value)
+            except:
+                self.type = "nil"
+                self.value = None
+        elif self.type == "string":
+            self.value = self.value
+        elif self.type == "bool":
+            if self.value.lower() == "true":
+                self.value = True
+            else:
+                self.value = False
+        elif self.type == "var":
+            self.type = self.type
+        else:
+            self.type = "nil"
+            self.value = None
 
 class Frames:
 
@@ -141,7 +166,7 @@ class Frames:
         actual_frame, var_name = self.parse_var_string(var_string)
 
         if var_name in actual_frame:
-            return actual_frame.get(var_name, variable_error())
+            return actual_frame.get(var_name)
         else:
             variable_error()
 
@@ -231,9 +256,13 @@ def i_add(system):
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
-
+    
+    if arg2.type == "var":
+        arg2 = system.frames.get_var(arg2.value)
+    if arg3.type == "var":
+        arg3 = system.frames.get_var(arg3.value)
     if arg2.type == "int" and arg3.type == "int":
-        result = int(arg2.value) + int(arg3.value)
+        result = arg2.value + arg3.value
         system.frames.update_var(arg1.value, "int", result)
     else:
         type_error()
@@ -242,9 +271,13 @@ def i_sub(system):
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
-
+    
+    if arg2.type == "var":
+        arg2 = system.frames.get_var(arg2.value)
+    if arg3.type == "var":
+        arg3 = system.frames.get_var(arg3.value)
     if arg2.type == "int" and arg3.type == "int":
-        result = int(arg2.value) - int(arg3.value)
+        result = arg2.value - arg3.value
         system.frames.update_var(arg1.value, "int", result)
     else:
         type_error()
@@ -254,8 +287,12 @@ def i_mul(system):
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
 
+    if arg2.type == "var":
+        arg2 = system.frames.get_var(arg2.value)
+    if arg3.type == "var":
+        arg3 = system.frames.get_var(arg3.value)
     if arg2.type == "int" and arg3.type == "int":
-        result = int(arg2.value) * int(arg3.value)
+        result = arg2.value * arg3.value
         system.frames.update_var(arg1.value, "int", result)
     else:
         type_error()
@@ -265,9 +302,13 @@ def i_idiv(system):
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
 
+    if arg2.type == "var":
+        arg2 = system.frames.get_var(arg2.value)
+    if arg3.type == "var":
+        arg3 = system.frames.get_var(arg3.value)
     if arg2.type == "int" and arg3.type == "int":
         try:    
-            result = int(arg2.value) // int(arg3.value)
+            result = arg2.value // arg3.value
         except ZeroDivisionError:
             wrong_operand_error()
         system.frames.update_var(arg1.value, "int", result)
@@ -275,34 +316,166 @@ def i_idiv(system):
         type_error()
 
 def i_lt(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+    arg2 = system.instruction.arguments[1]
+    arg3 = system.instruction.arguments[2]
+
+    if arg2.type == "var":
+        arg2 = system.frames.get_var(arg2.value)
+    if arg3.type == "var":
+        arg3 = system.frames.get_var(arg3.value)
+    if arg2.type == arg3.type:
+        try:
+            result = arg2.value < arg3.value
+        except TypeError:
+            type_error()
+        system.frames.update_var(arg1.value, "bool", result)
+    else:
+        type_error()
 
 def i_gt(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+    arg2 = system.instruction.arguments[1]
+    arg3 = system.instruction.arguments[2]
+
+    if arg2.type == "var":
+        arg2 = system.frames.get_var(arg2.value)
+    if arg3.type == "var":
+        arg3 = system.frames.get_var(arg3.value)
+    if arg2.type == arg3.type:
+        try:
+            result = arg2.value > arg3.value
+        except TypeError:
+            type_error()
+        system.frames.update_var(arg1.value, "bool", result)
+    else:
+        type_error()
 
 def i_eq(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+    arg2 = system.instruction.arguments[1]
+    arg3 = system.instruction.arguments[2]
+
+    if arg2.type == "var":
+        arg2 = system.frames.get_var(arg2.value)
+    if arg3.type == "var":
+        arg3 = system.frames.get_var(arg3.value)
+    if arg2.type == arg3.type:
+        try:
+            result = arg2.value == arg3.value
+        except TypeError:
+            type_error()
+        system.frames.update_var(arg1.value, "bool", result)
+    else:
+        type_error()
 
 def i_and(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+    arg2 = system.instruction.arguments[1]
+    arg3 = system.instruction.arguments[2]
+
+    if arg2.type == "var":
+        arg2 = system.frames.get_var(arg2.value)
+    if arg3.type == "var":
+        arg3 = system.frames.get_var(arg3.value)
+    if arg2.type == arg3.type == "bool":
+        result = arg2.value and arg3.value
+        system.frames.update_var(arg1.value, "bool", result)
+    else:
+        type_error()
 
 def i_or(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+    arg2 = system.instruction.arguments[1]
+    arg3 = system.instruction.arguments[2]
+
+    if arg2.type == "var":
+        arg2 = system.frames.get_var(arg2.value)
+    if arg3.type == "var":
+        arg3 = system.frames.get_var(arg3.value)
+    if arg2.type == arg3.type == "bool":
+        result = arg2.value or arg3.value
+        system.frames.update_var(arg1.value, "bool", result)
+    else:
+        type_error()
 
 def i_not(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+    arg2 = system.instruction.arguments[1]
+
+    if arg2.type == "var":
+        arg2 = system.frames.get_var(arg2.value)
+    if arg2.type == "bool":
+        result = not arg2.value
+        system.frames.update_var(arg1.value, "bool", result)
+    else:
+        type_error()
 
 def i_int2char(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+    arg2 = system.instruction.arguments[1]
+
+    if arg2.type == "var":
+        arg2 = system.frames.get_var(arg2.value)
+    if arg2.type == "int":
+        try:
+            result = chr(arg2.value)
+        except ValueError:
+            string_error()
+        system.frames.update_var(arg1.value, "string", result)
+    else:
+        type_error()
 
 def i_stri2int(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+    arg2 = system.instruction.arguments[1]
+    arg3 = system.instruction.arguments[2]
+
+    if arg2.type == "var":
+        arg2 = system.frames.get_var(arg2.value)
+    if arg3.type == "var":
+        arg3 = system.frames.get_var(arg3.value)
+    if arg2.type == "string" and arg3.type == "int":
+        try:
+            result = ord(arg2.value[arg3.value])
+        except IndexError:
+            string_error()
+        system.frames.update_var(arg1.value, "int", result)
+    else:
+        type_error()
 
 def i_read(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+    arg2 = system.instruction.arguments[1]
+
+    data = ProgramData()
+    data.type = arg2
+    if system.program.input:
+        try:
+            data.value = system.program.input.popleft()
+        except IndexError:
+            data.type = "nil"
+            data.value = "nil"
+    else:
+        data.value = input()  
+    
+    data.convert_type()
+    system.frames.update_var(arg1.value, data.type, data.value)
 
 def i_write(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+
+    if arg1.type == "var":
+        arg1 = system.frames.get_var(arg1.value)
+    if arg1.type == "bool":
+        if arg1.value:
+            print("true", end='')
+        else:
+            print("false", end='')
+    elif arg1.type == "nil":
+        print("", end='')
+    else:
+        print(arg1.value, end='')
 
 def i_concat(system):
     pass
@@ -370,21 +543,25 @@ def wrong_operand_error():
     print("ERROR: wrong operand (or zero division)", file=sys.stderr)
     sys.exit(57)    
 
+def string_error():
+    print("ERROR: invalid operation with string (or zero division)", file=sys.stderr)
+    sys.exit(58)      
+
 def parse_error():
     print("ERROR: invalid XML format", file=sys.stderr)
     sys.exit(31)
 
-def structure_error(arg):
+def structure_error():
     print("ERROR: invalid XML structure", file=sys.stderr)
     sys.exit(32)
     
-def file_error():
-    print("ERROR: invalid file", file=sys.stderr)
-    sys.exit(11)
-
 def argument_error():
     print("ERROR: invalid file", file=sys.stderr)
     sys.exit(10)
+
+def file_error():
+    print("ERROR: invalid file", file=sys.stderr)
+    sys.exit(11)
 
 # script methods
 
@@ -421,17 +598,16 @@ def parse_souce(source_path):
     return parsed_source
 
 def get_input(input_path):
-    program_input = ""
 
     if args.input:
         try:
             f = open(args.input, "r")
-            program_input = f.read()
+            program_input = deque(f.read().splitlines())
             f.close()
         except OSError:
             file_error()
     else:
-        program_input = sys.stdin.read()
+        program_input = None
 
     return program_input
 
