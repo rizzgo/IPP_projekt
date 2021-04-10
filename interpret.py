@@ -14,14 +14,55 @@ class System:
         self.instruction = Instruction()
 
     def run_interpret(self):
-        while is_instruction(self.program.instruction_ptr, self.program.length): 
+        while self.program.ptr_is_valid():
             instruction = self.program.instructions[self.program.instruction_ptr]
             self.instruction.opcode = instruction.attrib['opcode']
-            self.instruction.arguments = list(instruction)
+            self.instruction.parse_arguments(instruction)
             
-            interpret_instruction(self)
+            self.interpret_instruction()
 
             self.program.instruction_ptr += 1
+
+    def interpret_instruction(self):
+        switcher = {
+            "MOVE": i_move,
+            "CREATEFRAME": i_createframe,
+            "PUSHFRAME": i_pushframe,
+            "POPFRAME": i_popframe,
+            "DEFVAR": i_defvar,
+            "CALL": i_call,
+            "RETURN": i_return,
+            "PUSHS": i_pushs,
+            "POPS": i_pops,
+            "ADD": i_add,
+            "SUB": i_sub,
+            "MUL": i_mul,
+            "IDIV": i_idiv,
+            "LT": i_lt,
+            "GT": i_gt,
+            "EQ": i_eq,
+            "AND": i_and,
+            "OR": i_or,
+            "NOT": i_not,
+            "INT2CHAR": i_int2char,
+            "STRI2INT": i_stri2int,
+            "READ": i_read,
+            "WRITE": i_write,
+            "CONCAT": i_concat,
+            "STRLEN": i_strlen,
+            "GETCHAR": i_getchar,
+            "SETCHAR": i_setchar,
+            "TYPE": i_type,
+            "LABEL": i_label,
+            "JUMP": i_jump,
+            "JUMPIFEQ": i_jumpifeq,
+            "JUMPIFNEQ": i_jumpifneq,
+            "EXIT": i_exit,
+            "DPRINT": i_dprint,
+            "BREAK": i_break
+        }
+            
+        switcher.get(self.instruction.opcode, structure_error)(self)
 
 class Program:
 
@@ -31,11 +72,28 @@ class Program:
         self.length = 0
         self.input = ""
 
+    def ptr_is_valid(self):
+        return 0 <= self.instruction_ptr < self.length
+
 class Instruction:
 
     def __init__(self):
         self.opcode = ""
         self.arguments = []
+
+    def parse_arguments(self, instruction):
+        self.arguments = []
+        for argument in instruction:
+            arg = ProgramData()
+            arg.type = argument.attrib["type"]
+            arg.value = argument.text
+            self.arguments.append(arg)
+
+class ProgramData:
+
+    def __init__(self, data_type="", data_value=""):
+        self.type = data_type
+        self.value = data_value
 
 class Frames:
 
@@ -75,9 +133,9 @@ class Frames:
         actual_frame, var_name = self.parse_var_string(var_string)
 
         if var_name in actual_frame:
-            variable_error()
+            code_semantic_error()
         else:
-            actual_frame[var_name] = {"type": None, "value": None}
+            actual_frame[var_name] = ProgramData()
 
     def get_var(self, var_string):
         actual_frame, var_name = self.parse_var_string(var_string)
@@ -91,7 +149,8 @@ class Frames:
         actual_frame, var_name = self.parse_var_string(var_string)
 
         if var_name in actual_frame:
-            actual_frame[var_name] = {"type": var_type, "value": var_value}
+            actual_frame[var_name].type = var_type
+            actual_frame[var_name].value = var_value
         else:
             variable_error()
 
@@ -107,12 +166,12 @@ class Stack:
         try:
             return self.stack.pop()
         except IndexError:
-            value_error()
+            missing_value_error()
 
 class DataStack(Stack):
 
     def push(self, data_type, data_value):
-        self.stack.append({"type": data_type, "value": data_value})
+        self.stack.append(ProgramData(data_type, data_value))
 
 # instruction methods
 
@@ -120,17 +179,11 @@ def i_move(system):
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
     
-    second_type = arg2.attrib["type"]
-    
-    if second_type == "var":
-        variable = system.frames.get_var(arg2.text)
-        var_type = variable["type"]
-        var_value = variable["value"]
+    if arg2.type == "var":
+        variable = system.frames.get_var(arg2.value)
+        system.frames.update_var(arg1.value, variable.type, variable.value)
     else:
-        var_type = second_type
-        var_value = arg1.text
-
-    system.frames.update_var(arg1.text, var_type, var_value)
+        system.frames.update_var(arg1.value, arg2.type, arg2.value)
 
 def i_createframe(system):
     system.frames.create_tf()
@@ -143,16 +196,22 @@ def i_popframe(system):
 
 def i_defvar(system):
     arg1 = system.instruction.arguments[0]
-    system.frames.def_var(arg1.text)
+    system.frames.def_var(arg1.value)
 
 def i_call(system):
+    arg1 = system.instruction.arguments[0]
+    label_found = False
     system.callstack.push(system.program.instruction_ptr)
     
     for instruction in system.program.instructions:
        if instruction.attrib["opcode"] == "LABEL":
-            if instruction[0].text == system.instruction.arguments[0].text:
+            label_name = instruction[0].value
+            if label_name == arg1.value:
+                label_found = True
                 system.program.instruction_ptr = int(instruction.attrib["order"])
                 break
+    if label_found == False:
+        code_semantic_error()
 
 def i_return(system):
     system.program.instruction_ptr = system.callstack.pop()
@@ -160,32 +219,60 @@ def i_return(system):
 def i_pushs(system):
     arg1 = system.instruction.arguments[0]
 
-    system.datastack.push(arg1.attrib["type"], arg1.text)
+    system.datastack.push(arg1.type, arg1.value)
 
 def i_pops(system):
     arg1 = system.instruction.arguments[0]
 
     data = system.datastack.pop()
-    data_type = data["type"]
-    data_value = data["value"]
-    system.frames.update_var(arg1, data_type, data_value)
+    system.frames.update_var(arg1, data.type, data.value)
 
 def i_add(system):
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
 
-    if arg2.attrib["type"] == "int" and arg3.attrib["type"] == "int":
-        pass
+    if arg2.type == "int" and arg3.type == "int":
+        result = int(arg2.value) + int(arg3.value)
+        system.frames.update_var(arg1.value, "int", result)
+    else:
+        type_error()
 
 def i_sub(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+    arg2 = system.instruction.arguments[1]
+    arg3 = system.instruction.arguments[2]
+
+    if arg2.type == "int" and arg3.type == "int":
+        result = int(arg2.value) - int(arg3.value)
+        system.frames.update_var(arg1.value, "int", result)
+    else:
+        type_error()
 
 def i_mul(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+    arg2 = system.instruction.arguments[1]
+    arg3 = system.instruction.arguments[2]
+
+    if arg2.type == "int" and arg3.type == "int":
+        result = int(arg2.value) * int(arg3.value)
+        system.frames.update_var(arg1.value, "int", result)
+    else:
+        type_error()
 
 def i_idiv(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+    arg2 = system.instruction.arguments[1]
+    arg3 = system.instruction.arguments[2]
+
+    if arg2.type == "int" and arg3.type == "int":
+        try:    
+            result = int(arg2.value) // int(arg3.value)
+        except ZeroDivisionError:
+            wrong_operand_error()
+        system.frames.update_var(arg1.value, "int", result)
+    else:
+        type_error()
 
 def i_lt(system):
     pass
@@ -259,6 +346,10 @@ def handle_get_error(opcode):
     print(f"get error {opcode}", file=sys.stderr)
     sys.exit(345)
 
+def code_semantic_error():
+    print("ERROR: semantic error in IPPcode", file=sys.stderr)
+    sys.exit(52)
+
 def type_error():
     print("ERROR: wrong type", file=sys.stderr)
     sys.exit(53)
@@ -271,9 +362,13 @@ def frame_error():
     print("ERROR: frame doesn't exist", file=sys.stderr)
     sys.exit(55)
 
-def value_error():
+def missing_value_error():
     print("ERROR: value doesn't exist (or stack is empty)", file=sys.stderr)
     sys.exit(56)
+
+def wrong_operand_error():
+    print("ERROR: wrong operand (or zero division)", file=sys.stderr)
+    sys.exit(57)    
 
 def parse_error():
     print("ERROR: invalid XML format", file=sys.stderr)
@@ -339,50 +434,6 @@ def get_input(input_path):
         program_input = sys.stdin.read()
 
     return program_input
-
-def is_instruction(instruction_ptr, program_length):
-    return 0 <= instruction_ptr < program_length
-
-def interpret_instruction(system):
-    switcher = {
-        "MOVE": i_move,
-        "CREATEFRAME": i_createframe,
-        "PUSHFRAME": i_pushframe,
-        "POPFRAME": i_popframe,
-        "DEFVAR": i_defvar,
-        "CALL": i_call,
-        "RETURN": i_return,
-        "PUSHS": i_pushs,
-        "POPS": i_pops,
-        "ADD": i_add,
-        "SUB": i_sub,
-        "MUL": i_mul,
-        "IDIV": i_idiv,
-        "LT": i_lt,
-        "GT": i_gt,
-        "EQ": i_eq,
-        "AND": i_and,
-        "OR": i_or,
-        "NOT": i_not,
-        "INT2CHAR": i_int2char,
-        "STRI2INT": i_stri2int,
-        "READ": i_read,
-        "WRITE": i_write,
-        "CONCAT": i_concat,
-        "STRLEN": i_strlen,
-        "GETCHAR": i_getchar,
-        "SETCHAR": i_setchar,
-        "TYPE": i_type,
-        "LABEL": i_label,
-        "JUMP": i_jump,
-        "JUMPIFEQ": i_jumpifeq,
-        "JUMPIFNEQ": i_jumpifneq,
-        "EXIT": i_exit,
-        "DPRINT": i_dprint,
-        "BREAK": i_break
-    }
-        
-    switcher.get(system.instruction.opcode, structure_error)(system)
 
 # script
 
