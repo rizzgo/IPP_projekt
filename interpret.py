@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
 import argparse
+import re
 import sys
 import os
 from collections import deque
@@ -21,7 +22,7 @@ class System:
             
             self.interpret_instruction()
 
-            self.program.instruction_ptr += 1
+            self.program.instruction_ptr += 1    
 
     def interpret_instruction(self):
         switcher = {
@@ -107,14 +108,14 @@ class ProgramData:
             except:
                 self.type = "nil"
                 self.value = None
-        elif self.type == "string":
-            self.value = self.value
         elif self.type == "bool":
             if self.value.lower() == "true":
                 self.value = True
             else:
                 self.value = False
-        elif self.type == "var":
+        elif self.type == "string":
+            self.value = re.sub(r"\\(\d{3})", lambda x: chr(int(x.group()[1:])), self.value)
+        elif self.type in ["var", "label", "type"]:
             self.type = self.type
         else:
             self.type = "nil"
@@ -225,9 +226,9 @@ def i_defvar(system):
 
 def i_call(system):
     arg1 = system.instruction.arguments[0]
-    label_found = False
-    system.callstack.push(system.program.instruction_ptr)
     
+    system.callstack.push(system.program.instruction_ptr)
+    label_found = False
     for instruction in system.program.instructions:
        if instruction.attrib["opcode"] == "LABEL":
             label_name = instruction[0].value
@@ -478,25 +479,85 @@ def i_write(system):
         print(arg1.value, end='')
 
 def i_concat(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+    arg2 = system.instruction.arguments[1]
+    arg3 = system.instruction.arguments[2]
+
+    if arg2.type == "var":
+        arg2 = system.frames.get_var(arg2.value)
+    if arg3.type == "var":
+        arg3 = system.frames.get_var(arg3.value)
+    if arg2.type == "string" and arg3.type == "string":   
+        result = arg2.value + arg3.value
+        system.frames.update_var(arg1.value, "string", result)
+    else:
+        type_error()
 
 def i_strlen(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+
+    if arg1.type == "var":
+        arg1 = system.frames.get_var(arg1.value)
+    if arg1.type == "string":
+        result = len(arg1.value)
+        system.frames.update_var(arg1.value, "int", result)
+    else:
+        type_error()
+    
 
 def i_getchar(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+    arg2 = system.instruction.arguments[1]
+    arg3 = system.instruction.arguments[2]
+
+    if arg2.type == "var":
+        arg2 = system.frames.get_var(arg2.value)
+    if arg3.type == "var":
+        arg3 = system.frames.get_var(arg3.value)
+    if arg2.type == "string" and arg3.type == "int":
+        try:
+            result = arg2.value[arg3.value]
+        except IndexError:
+            string_error()
+        system.frames.update_var(arg1.value, "int", result)
+    else:
+        type_error()
 
 def i_setchar(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+    arg2 = system.instruction.arguments[1]
+    arg3 = system.instruction.arguments[2]
+
+    if arg2.type == "var":
+        arg2 = system.frames.get_var(arg2.value)
+    if arg3.type == "var":
+        arg3 = system.frames.get_var(arg3.value)
+    if arg2.type == "int" and arg3.type == "string":
+        arg1_string = system.frames.get_var(arg1.value).value
+        try:
+            arg1_string = list(arg1_string)
+            arg1_string[arg2.value] = arg3.value[0]
+            arg1_string = "".join(arg1_string)
+        except IndexError:
+            string_error()
+        system.frames.update_var(arg1.value, "string", arg1_string)
+    else:
+        type_error()
 
 def i_type(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+    arg2 = system.instruction.arguments[1]
 
+    if arg2.type == "var":
+        arg2 = system.frames.get_var(arg2.value)
+    result = arg2.type
+    system.frames.update_var(arg1.value, "bool", result)
+    
 def i_label(system):
-    pass
+    arg1 = system.instruction.arguments[0]
 
 def i_jump(system):
-    pass
+    arg1 = system.instruction.arguments[0]
 
 def i_jumpifeq(system):
     pass
@@ -544,7 +605,7 @@ def wrong_operand_error():
     sys.exit(57)    
 
 def string_error():
-    print("ERROR: invalid operation with string (or zero division)", file=sys.stderr)
+    print("ERROR: invalid operation with string", file=sys.stderr)
     sys.exit(58)      
 
 def parse_error():

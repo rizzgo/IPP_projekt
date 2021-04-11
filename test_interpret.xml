@@ -52,7 +52,19 @@
    <arg1 type="var">GF@counter</arg1>
    <arg2 type="bool">false</arg2>
  </instruction>
-<instruction order="12" opcode="WRITE">
+<instruction order="13" opcode="WRITE">
+   <arg1 type="string">\010&amp;řetězec\032s\032lomítkem\032\092\032a\010novým\035řádkem</arg1>
+ </instruction>
+ <instruction order="14" opcode="MOVE">
+   <arg1 type="var">GF@counter</arg1>
+   <arg2 type="string">teststring</arg2>
+ </instruction>
+ <instruction order="15" opcode="SETCHAR">
+   <arg1 type="var">GF@counter</arg1>
+   <arg2 type="int">9</arg2>
+   <arg3 type="string">teststring</arg3>
+ </instruction>
+<instruction order="16" opcode="WRITE">
    <arg1 type="var">GF@counter</arg1>
  </instruction>
 </program>
