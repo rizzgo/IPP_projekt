@@ -80,6 +80,19 @@ class Program:
     def ptr_is_valid(self):
         return 0 <= self.instruction_ptr < self.length
 
+    def jump_to_label(self, name):
+        label_found = False
+        for instruction in self.instructions:
+            if instruction.attrib["opcode"] == "LABEL":
+                arguments = list(instruction)
+                label_name = arguments[0].text
+                if label_name == name:
+                    label_found = True
+                    self.instruction_ptr = self.instructions.index(instruction)
+                    break
+        if label_found == False:
+            code_semantic_error()
+
 class Instruction:
 
     def __init__(self):
@@ -228,16 +241,7 @@ def i_call(system):
     arg1 = system.instruction.arguments[0]
     
     system.callstack.push(system.program.instruction_ptr)
-    label_found = False
-    for instruction in system.program.instructions:
-       if instruction.attrib["opcode"] == "LABEL":
-            label_name = instruction[0].value
-            if label_name == arg1.value:
-                label_found = True
-                system.program.instruction_ptr = int(instruction.attrib["order"])
-                break
-    if label_found == False:
-        code_semantic_error()
+    system.program.jump_to_label(arg1.value)
 
 def i_return(system):
     system.program.instruction_ptr = system.callstack.pop()
@@ -559,20 +563,76 @@ def i_label(system):
 def i_jump(system):
     arg1 = system.instruction.arguments[0]
 
+    system.program.jump_to_label(arg1.value)
+
 def i_jumpifeq(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+    arg2 = system.instruction.arguments[1]
+    arg3 = system.instruction.arguments[2]
+
+    if arg2.type == "var":
+        arg2 = system.frames.get_var(arg2.value)
+    if arg3.type == "var":
+        arg3 = system.frames.get_var(arg3.value)
+    if arg2.type == arg3.type:
+        if arg2.value == arg3.value:
+            jump_to_label(arg1.value)
+    else:
+        type_error()
 
 def i_jumpifneq(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+    arg2 = system.instruction.arguments[1]
+    arg3 = system.instruction.arguments[2]
+
+    if arg2.type == "var":
+        arg2 = system.frames.get_var(arg2.value)
+    if arg3.type == "var":
+        arg3 = system.frames.get_var(arg3.value)
+    if arg2.type == arg3.type:
+        if arg2.value != arg3.value:
+            jump_to_label(arg1.value)
+    else:
+        type_error()    
 
 def i_exit(system):
-    pass
+    
+    arg1 = system.instruction.arguments[0]
+
+    if arg1.type == "var":
+        arg1 = system.frames.get_var(arg1.value)
+    if arg1.type == "int":
+        if 0 <= arg1.value <= 49:
+            sys.exit(arg1.value)
+        else:
+            wrong_operand_error()
+    else:
+        type_error()
 
 def i_dprint(system):
-    pass
+    arg1 = system.instruction.arguments[0]
+
+    if arg1.type == "var":
+        arg1 = system.frames.get_var(arg1.value)
+    if arg1.type == "bool":
+        if arg1.value:
+            print("true", end='', file=sys.stderr)
+        else:
+            print("false", end='', file=sys.stderr)
+    elif arg1.type == "nil":
+        print("", end='', file=sys.stderr)
+    else:
+        print(arg1.value, end='', file=sys.stderr)
 
 def i_break(system):
-    pass
+    actual_instruction = system.program.instructions[system.program.instruction_ptr]
+    print("\n\nActual instruction number:", actual_instruction.attrib["order"], file=sys.stderr)
+    print("Actual instruciton name:", actual_instruction.attrib["opcode"], file=sys.stderr)
+    print("Actual content in frames:",
+          "\n Global frame:\n", system.frames.global_frame,
+          "\n\n Local frame:\n", system.frames.local_frame,
+          "\n\n Temporary frame:\n", system.frames.tmp_frame,
+          "\n", file=sys.stderr)
 
 # error methods
 
