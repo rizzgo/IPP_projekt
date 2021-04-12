@@ -576,7 +576,7 @@ def i_jumpifeq(system):
         arg3 = system.frames.get_var(arg3.value)
     if arg2.type == arg3.type:
         if arg2.value == arg3.value:
-            jump_to_label(arg1.value)
+            system.program.jump_to_label(arg1.value)
     else:
         type_error()
 
@@ -591,7 +591,7 @@ def i_jumpifneq(system):
         arg3 = system.frames.get_var(arg3.value)
     if arg2.type == arg3.type:
         if arg2.value != arg3.value:
-            jump_to_label(arg1.value)
+            system.program.jump_to_label(arg1.value)
     else:
         type_error()    
 

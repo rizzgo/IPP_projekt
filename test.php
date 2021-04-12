@@ -21,6 +21,50 @@
  $args data about arguments
  $dir_output output data from tested directory
  */ 
+function run_int_test(&$src_file, array &$args) : bool {
+    $test_name = $src_file->getBasename('.src');
+    $dir_path = $src_file->getPath();
+    $no_extension_path = $dir_path . '/' . $test_name;
+
+    $exit_code = -1;
+    $diff_exit_code = -1;
+    $out = null;
+    $ref_exit_code = "";
+    $ref_output_path = "";
+    
+    if (is_file($no_extension_path . '.rc'))
+        $ref_exit_code = file_get_contents($no_extension_path . '.rc');
+    if (is_file($no_extension_path . '.in'))
+        $input_path = $no_extension_path . '.in';
+    if (is_file($no_extension_path . '.out'))
+        $ref_output_path = $no_extension_path . '.out';
+    $source_path = $no_extension_path . '.src';
+    
+    exec('python3.8 ' . $args['interpret_path'] . ' --source=' . $source_path . ' --input=' . $input_path . ' > tmp.out', $out, $exit_code);
+    if ($ref_exit_code == $exit_code) {
+        if ($exit_code == 0) {
+            exec('diff' . ' tmp.out ' . $ref_output_path, $out, $diff_exit_code);
+            if ($diff_exit_code == 0) {
+                return true;
+            }
+        }
+        else {
+            return true;
+        }
+    }
+    $counter = substr_count($args['tests_path'], "/") - 1;
+    echo "<h4 style='margin-left: " . $counter * 20 . "px '>" . $no_extension_path . "</h4>\n";
+    return false;
+}
+
+/*
+ Runs one test with name from .src file
+ 
+ parameters:
+ $src_file data about tested file with .src extension
+ $args data about arguments
+ $dir_output output data from tested directory
+ */ 
 function run_parser_test(&$src_file, array &$args) : bool {
     $test_name = $src_file->getBasename('.src');
     $dir_path = $src_file->getPath();
@@ -53,7 +97,8 @@ function run_parser_test(&$src_file, array &$args) : bool {
             return true;
         }
     }
-    echo "<h4>" . $no_extension_path . "</h4>";
+    $counter = substr_count($args['tests_path'], "/") - 1;
+    echo "<h4 style='margin-left: " . $counter * 20 . "px '>" . $no_extension_path . "</h4>\n";
     return false;
 }
 
@@ -67,9 +112,10 @@ function run_parser_test(&$src_file, array &$args) : bool {
  */
 function search_directory(array &$args) {
     $test_elements = new FileSystemIterator($args['tests_path']);
+    $counter = substr_count($args['tests_path'], "/") - 1;
     $tests = 0;
     $passed = 0;
-    echo "<h2>" . $args['tests_path'] . "</h2>\n";
+    echo "<h2 style='margin-left: " . $counter * 20 . "px '>" . $args['tests_path'] . "</h2>\n";
     foreach ($test_elements as $element_path => $element) {
         if ($element->isDir() && $args['recursive']) {
             $args['tests_path'] = $element_path;
@@ -77,12 +123,24 @@ function search_directory(array &$args) {
         }
         else {
             if ($element->getExtension() == 'src') {
-                if(run_parser_test($element, $args)) $passed++;
+                switch ($args['test_suite']) {
+                    case "all":
+                        break;
+                    case "parse":
+                        if(run_parser_test($element, $args)) $passed++;
+                        break;
+                    case "int":
+                        if(run_int_test($element, $args)) $passed++;
+                        break;
+                    default:
+                        break;
+                }
                 $tests++;
             }
         }
     }
-    echo "<p>\n";
+    echo "<p style='margin-left: " . $counter * 20 . "px '>\n";
+    echo "---------------------------------------------<br>\n";
     echo "tests: " . $tests . "<br>\n";
     echo "passed: " . $passed . "\n";
     echo "</p>\n";

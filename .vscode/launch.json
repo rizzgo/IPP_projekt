@@ -5,26 +5,32 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Current File",
-            "type": "python",
-            "request": "launch",
-            "program": "${file}",
-            "args" : ["--input=tmp.out", "<", "test_interpret.xml"],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Listen for XDebug",
+            "name": "Listen for Xdebug",
             "type": "php",
             "request": "launch",
-            "port": 9000
+            "port": 8000, 
+            "pathMappings": {
+                "~/Documents/IPP": "${workspaceFolder}/",
+            }
         },
         {
             "name": "Launch currently open script",
             "type": "php",
             "request": "launch",
-            "program": "parse.php",
-            "cwd": "/home/richard/Documents/IPP",
-            "port": 9000
-        }
+            "program": "${file}",
+            "cwd": "${fileDirname}",
+            "pathMappings": {
+                "~/Documents/IPP": "${workspaceFolder}/",
+            }
+        },
+
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "args" : ["--input=tmp.out"],
+            "console": "integratedTerminal"
+        },
     ]
 }
