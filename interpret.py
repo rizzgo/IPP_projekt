@@ -250,6 +250,8 @@ def i_move(system):
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
 
+    if arg1.type != "var":
+        structure_error()
     if arg2.type == "var":
         variable = system.frames.get_var(arg2.value)
         system.frames.update_var(arg1.value, variable.type, variable.value)
@@ -270,6 +272,8 @@ def i_defvar(system):
         structure_error()
     arg1 = system.instruction.arguments[0]
     
+    if arg1.type != "var":
+        structure_error()
     system.frames.def_var(arg1.value)
 
 def i_call(system):
@@ -277,6 +281,8 @@ def i_call(system):
         structure_error()
     arg1 = system.instruction.arguments[0]
 
+    if arg1.type != "label":
+        structure_error()
     system.callstack.push(system.program.instruction_ptr)
     system.program.jump_to_label(arg1.value)
 
@@ -295,6 +301,8 @@ def i_pops(system):
         structure_error()
     arg1 = system.instruction.arguments[0]
 
+    if arg1.type != "var":
+        structure_error()
     data = system.datastack.pop()
     system.frames.update_var(arg1.value, data.type, data.value)
 
@@ -305,6 +313,8 @@ def i_add(system):
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
 
+    if arg1.type != "var":
+        structure_error()
     if arg2.type == "var":
         arg2 = system.frames.get_var(arg2.value)
     if arg3.type == "var":
@@ -322,6 +332,8 @@ def i_sub(system):
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
 
+    if arg1.type != "var":
+        structure_error()
     if arg2.type == "var":
         arg2 = system.frames.get_var(arg2.value)
     if arg3.type == "var":
@@ -339,6 +351,8 @@ def i_mul(system):
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
 
+    if arg1.type != "var":
+        structure_error()
     if arg2.type == "var":
         arg2 = system.frames.get_var(arg2.value)
     if arg3.type == "var":
@@ -356,6 +370,8 @@ def i_idiv(system):
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
 
+    if arg1.type != "var":
+        structure_error()
     if arg2.type == "var":
         arg2 = system.frames.get_var(arg2.value)
     if arg3.type == "var":
@@ -376,6 +392,8 @@ def i_lt(system):
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
 
+    if arg1.type != "var":
+        structure_error()
     if arg2.type == "var":
         arg2 = system.frames.get_var(arg2.value)
     if arg3.type == "var":
@@ -396,6 +414,8 @@ def i_gt(system):
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
 
+    if arg1.type != "var":
+        structure_error()
     if arg2.type == "var":
         arg2 = system.frames.get_var(arg2.value)
     if arg3.type == "var":
@@ -416,6 +436,8 @@ def i_eq(system):
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
 
+    if arg1.type != "var":
+        structure_error()
     if arg2.type == "var":
         arg2 = system.frames.get_var(arg2.value)
     if arg3.type == "var":
@@ -436,6 +458,8 @@ def i_and(system):
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
 
+    if arg1.type != "var":
+        structure_error()
     if arg2.type == "var":
         arg2 = system.frames.get_var(arg2.value)
     if arg3.type == "var":
@@ -453,6 +477,8 @@ def i_or(system):
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
 
+    if arg1.type != "var":
+        structure_error()
     if arg2.type == "var":
         arg2 = system.frames.get_var(arg2.value)
     if arg3.type == "var":
@@ -469,6 +495,8 @@ def i_not(system):
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
 
+    if arg1.type != "var":
+        structure_error()
     if arg2.type == "var":
         arg2 = system.frames.get_var(arg2.value)
     if arg2.type == "bool":
@@ -483,6 +511,8 @@ def i_int2char(system):
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
 
+    if arg1.type != "var":
+        structure_error()
     if arg2.type == "var":
         arg2 = system.frames.get_var(arg2.value)
     if arg2.type == "int":
@@ -501,6 +531,8 @@ def i_stri2int(system):
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
 
+    if arg1.type != "var":
+        structure_error()
     if arg2.type == "var":
         arg2 = system.frames.get_var(arg2.value)
     if arg3.type == "var":
@@ -520,8 +552,10 @@ def i_read(system):
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
 
+    if arg1.type != "var" or arg2.type != "type":
+        structure_error()
     data = ProgramData()
-    data.type = arg2
+    data.type = arg2.value
     if system.program.input:
         try:
             data.value = system.program.input.popleft()
@@ -571,6 +605,8 @@ def i_concat(system):
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
 
+    if arg1.type != "var":
+        structure_error()
     if arg2.type == "var":
         arg2 = system.frames.get_var(arg2.value)
     if arg3.type == "var":
@@ -586,6 +622,8 @@ def i_strlen(system):
         structure_error()
     arg1 = system.instruction.arguments[0]
         
+    if arg1.type != "var":
+        structure_error()
     if arg1.type == "var":
         arg1 = system.frames.get_var(arg1.value)
     if arg1.type == "string":
@@ -602,6 +640,8 @@ def i_getchar(system):
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
 
+    if arg1.type != "var":
+        structure_error()
     if arg2.type == "var":
         arg2 = system.frames.get_var(arg2.value)
     if arg3.type == "var":
@@ -622,6 +662,8 @@ def i_setchar(system):
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
 
+    if arg1.type != "var":
+        structure_error()
     if arg2.type == "var":
         arg2 = system.frames.get_var(arg2.value)
     if arg3.type == "var":
@@ -644,6 +686,8 @@ def i_type(system):
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
 
+    if arg1.type != "var":
+        structure_error()
     if arg2.type == "var":
         arg2 = system.frames.get_var(arg2.value)
     result = arg2.type
@@ -654,6 +698,8 @@ def i_label(system):
         structure_error()
     arg1 = system.instruction.arguments[0]
  
+    if arg1.type != "label":
+        structure_error()
     if not arg1.value in system.program.labels:
         system.program.labels.append(arg1.value)
     else:
@@ -664,6 +710,8 @@ def i_jump(system):
         structure_error()
     arg1 = system.instruction.arguments[0]
         
+    if arg1.type != "label":
+        structure_error()
     system.program.jump_to_label(arg1.value)
 
 def i_jumpifeq(system):
@@ -673,6 +721,8 @@ def i_jumpifeq(system):
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
 
+    if arg1.type != "label":
+        structure_error()
     if arg2.type == "var":
         arg2 = system.frames.get_var(arg2.value)
     if arg3.type == "var":
@@ -690,6 +740,8 @@ def i_jumpifneq(system):
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
 
+    if arg1.type != "label":
+        structure_error()
     if arg2.type == "var":
         arg2 = system.frames.get_var(arg2.value)
     if arg3.type == "var":
