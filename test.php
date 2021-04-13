@@ -30,16 +30,28 @@ function run_int_test(&$src_file, array &$args) : bool {
     $diff_exit_code = -1;
     $out = null;
     $ref_exit_code = "";
-    $ref_output_path = "";
     
-    if (is_file($no_extension_path . '.rc'))
-        $ref_exit_code = file_get_contents($no_extension_path . '.rc');
-    if (is_file($no_extension_path . '.in'))
-        $input_path = $no_extension_path . '.in';
-    if (is_file($no_extension_path . '.out'))
-        $ref_output_path = $no_extension_path . '.out';
+    $input_path = $no_extension_path . '.in';
+    $ref_output_path = $no_extension_path . '.out';
+    $ref_exit_code_path = $no_extension_path . '.rc';
     $source_path = $no_extension_path . '.src';
     
+    if (!is_file($input_path)) {
+        $in = fopen($input_path, "w") or die("Unable to open file!");
+        fclose($in);
+    }
+    if (!is_file($ref_output_path)) {
+        $out = fopen($ref_output_path, "w") or die("Unable to open file!");
+        fclose($out);
+    }
+    if (!is_file($ref_exit_code_path)) {
+        $rc = fopen($ref_exit_code_path, "w") or die("Unable to open file!");
+        fwrite($rc, "0");
+        fclose($rc);
+    }
+
+    $ref_exit_code = file_get_contents($ref_exit_code_path);
+
     exec('python3.8 ' . $args['interpret_path'] . ' --source=' . $source_path . ' --input=' . $input_path . ' > tmp.out', $out, $exit_code);
     if ($ref_exit_code == $exit_code) {
         if ($exit_code == 0) {
@@ -47,13 +59,16 @@ function run_int_test(&$src_file, array &$args) : bool {
             if ($diff_exit_code == 0) {
                 return true;
             }
+            else {
+                echo "<h4>" . $no_extension_path ." | invalid output</h4>\n";
+                return false;
+            }
         }
         else {
             return true;
         }
     }
-    $counter = substr_count($args['tests_path'], "/") - 1;
-    echo "<h4 style='margin-left: " . $counter * 20 . "px '>" . $no_extension_path . "</h4>\n";
+    echo "<h4>" . $no_extension_path ." | exit code: ".$exit_code." valid: ".$ref_exit_code; "</h4>\n";
     return false;
 }
 
@@ -73,18 +88,32 @@ function run_parser_test(&$src_file, array &$args) : bool {
     $exit_code = -1;
     $xml_exit_code = -1;
     $out = null;
-    $test_arguments = ""; $ref_exit_code = "";
-    $ref_output_path = ""; 
+    $test_arguments = ""; 
+    $ref_exit_code = "";
 
-    if (is_file($no_extension_path . '.in'))
-        $test_arguments = file_get_contents($no_extension_path . '.in');
-    if (is_file($no_extension_path . '.rc'))
-        $ref_exit_code = file_get_contents($no_extension_path . '.rc');
-    
-    if (is_file($no_extension_path . '.out'))
-        $ref_output_path = $no_extension_path . '.out';
-    
-    exec('php7.4 ' . $args['parser_path'] . $test_arguments . ' < ' . $no_extension_path . '.src > tmp.out', $out, $exit_code);
+    $input_path = $no_extension_path . '.in';
+    $ref_output_path = $no_extension_path . '.out';
+    $ref_exit_code_path = $no_extension_path . '.rc';
+    $source_path = $no_extension_path . '.src'; 
+  
+    if (!is_file($input_path)) {
+        $in = fopen($input_path, "w") or die("Unable to open file!");
+        fclose($in);
+    }
+    if (!is_file($ref_output_path)) {
+        $out = fopen($ref_output_path, "w") or die("Unable to open file!");
+        fclose($out);
+    }
+    if (!is_file($ref_exit_code_path)) {
+        $rc = fopen($ref_exit_code_path, "w") or die("Unable to open file!");
+        fwrite($rc, "0");
+        fclose($rc);
+    }
+
+    $test_arguments = file_get_contents($input_path);
+    $ref_exit_code = file_get_contents($ref_exit_code_path);
+
+    exec('php7.4 ' . $args['parser_path'] . $test_arguments . ' < ' . $source_path . ' > tmp.out', $out, $exit_code);
     if ($ref_exit_code == $exit_code) {
         if ($exit_code == 0) {
             exec('java -jar ' . $args['jexam_path'] . ' tmp.out ' . $ref_output_path .
@@ -97,8 +126,7 @@ function run_parser_test(&$src_file, array &$args) : bool {
             return true;
         }
     }
-    $counter = substr_count($args['tests_path'], "/") - 1;
-    echo "<h4 style='margin-left: " . $counter * 20 . "px '>" . $no_extension_path . "</h4>\n";
+    echo "<h4>" . $no_extension_path . "</h4>\n";
     return false;
 }
 
@@ -112,10 +140,9 @@ function run_parser_test(&$src_file, array &$args) : bool {
  */
 function search_directory(array &$args) {
     $test_elements = new FileSystemIterator($args['tests_path']);
-    $counter = substr_count($args['tests_path'], "/") - 1;
     $tests = 0;
     $passed = 0;
-    echo "<h2 style='margin-left: " . $counter * 20 . "px '>" . $args['tests_path'] . "</h2>\n";
+    echo "<h2>" . $args['tests_path'] . "</h2>\n";
     foreach ($test_elements as $element_path => $element) {
         if ($element->isDir() && $args['recursive']) {
             $args['tests_path'] = $element_path;
@@ -139,7 +166,7 @@ function search_directory(array &$args) {
             }
         }
     }
-    echo "<p style='margin-left: " . $counter * 20 . "px '>\n";
+    echo "<p>\n";
     echo "---------------------------------------------<br>\n";
     echo "tests: " . $tests . "<br>\n";
     echo "passed: " . $passed . "\n";

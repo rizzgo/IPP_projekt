@@ -1,8 +1,9 @@
-import xml.etree.ElementTree as ET
+from lxml import etree
 import argparse
 import re
 import sys
 import os
+from io import StringIO
 from collections import deque
 
 class System:
@@ -17,9 +18,8 @@ class System:
     def run_interpret(self):
         while self.program.ptr_is_valid():
             instruction = self.program.instructions[self.program.instruction_ptr]
-            self.instruction.opcode = instruction.attrib['opcode']
-            self.instruction.parse_arguments(instruction)
             
+            self.instruction.load(instruction)
             self.interpret_instruction()
 
             self.program.instruction_ptr += 1    
@@ -76,6 +76,7 @@ class Program:
         self.instruction_ptr = 0
         self.length = 0
         self.input = ""
+        self.labels = []
 
     def ptr_is_valid(self):
         return 0 <= self.instruction_ptr < self.length
@@ -98,9 +99,16 @@ class Instruction:
     def __init__(self):
         self.opcode = ""
         self.arguments = []
+    
+    def unique_arguments(self):
+        if len() > len(set(self.arguments)):
+            structure_error()
 
-    def parse_arguments(self, instruction):
+    def load(self, instruction):
+        self.opcode = instruction.attrib['opcode']
         self.arguments = []
+        instruction = list(instruction)
+        instruction.sort(key=lambda arg: arg.tag)
         for argument in instruction:
             arg = ProgramData()
             arg.type = argument.attrib["type"]
@@ -114,55 +122,77 @@ class ProgramData:
         self.type = data_type
         self.value = data_value
 
+    def convert_escaped_ascii(self):
+        self.value = re.sub(r"\\(\d{3})", lambda x: chr(int(x.group()[1:])), self.value)
+
     def convert_type(self):
         if self.type == "int":
             try:
                 self.value = int(self.value)
             except:
-                self.type = "nil"
-                self.value = None
+                structure_error()
         elif self.type == "bool":
-            if self.value.lower() == "true":
+            if self.value == "true":
                 self.value = True
-            else:
+            elif self.value == "false":
                 self.value = False
+            else:
+                structure_error()
         elif self.type == "string":
-            self.value = re.sub(r"\\(\d{3})", lambda x: chr(int(x.group()[1:])), self.value)
-        elif self.type in ["var", "label", "type"]:
+            self.convert_escaped_ascii()
+        elif self.type == "var":
+            if re.match("^(LF|GF|TF)@", self.value):
+                self.convert_escaped_ascii()
+            else:
+                structure_error()
+        elif self.type == "type":
+            if not self.value in ["int", "string", "bool"]:
+                structure_error()
+        elif self.type == "label":
             self.type = self.type
-        else:
-            self.type = "nil"
+        elif self.type == "nil":
             self.value = None
+        else:
+            structure_error()
 
 class Frames:
 
     def __init__(self):
-        self.__stack = deque([{}])
-        self.global_frame = self.__stack[0]
-        self.local_frame = self.__stack[-1]
+        self.global_frame = {}
+        self.__local_frames = deque([])
         self.tmp_frame = None
 
+    def get_local_frame(self):
+        try:
+            return self.__local_frames[-1]
+        except IndexError:
+            return None
+
     def push_frame(self):
-        self.__stack.append(self.tmp_frame)
-        self.tmp_frame = None
+        if self.tmp_frame != None:
+            self.__local_frames.append(self.tmp_frame)
+            self.tmp_frame = None
+        else:
+            frame_error()
 
     def pop_frame(self):
         try:
-            self.tmp_frame = self.__stack.pop()
+            self.tmp_frame = self.__local_frames.pop()
         except IndexError:
             frame_error()
 
-    def create_tf(sefl):
+    def create_tf(self):
         self.tmp_frame = {}
 
     def parse_var_string(self, var_string):
         frame, var_name = var_string.split("@")
-        switcher = {
-            "GF": self.global_frame,
-            "LF": self.local_frame,
-            "TF": self.tmp_frame
-        }
-        actual_frame = switcher.get(frame)
+        
+        if frame == "GF":
+            actual_frame = self.global_frame
+        if frame == "LF":
+            actual_frame = self.get_local_frame()
+        if frame == "TF":
+            actual_frame = self.tmp_frame
         
         if actual_frame == None:
             frame_error()
@@ -215,9 +245,11 @@ class DataStack(Stack):
 # instruction methods
 
 def i_move(system):
+    if len(system.instruction.arguments) != 2:
+        structure_error()
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
-    
+
     if arg2.type == "var":
         variable = system.frames.get_var(arg2.value)
         system.frames.update_var(arg1.value, variable.type, variable.value)
@@ -234,12 +266,17 @@ def i_popframe(system):
     system.frames.pop_frame()
 
 def i_defvar(system):
+    if len(system.instruction.arguments) != 1:
+        structure_error()
     arg1 = system.instruction.arguments[0]
+    
     system.frames.def_var(arg1.value)
 
 def i_call(system):
+    if len(system.instruction.arguments) != 1:
+        structure_error()
     arg1 = system.instruction.arguments[0]
-    
+
     system.callstack.push(system.program.instruction_ptr)
     system.program.jump_to_label(arg1.value)
 
@@ -247,21 +284,27 @@ def i_return(system):
     system.program.instruction_ptr = system.callstack.pop()
 
 def i_pushs(system):
+    if len(system.instruction.arguments) != 1:
+        structure_error()
     arg1 = system.instruction.arguments[0]
 
     system.datastack.push(arg1.type, arg1.value)
 
 def i_pops(system):
+    if len(system.instruction.arguments) != 1:
+        structure_error()
     arg1 = system.instruction.arguments[0]
 
     data = system.datastack.pop()
-    system.frames.update_var(arg1, data.type, data.value)
+    system.frames.update_var(arg1.value, data.type, data.value)
 
 def i_add(system):
+    if len(system.instruction.arguments) != 3:
+        structure_error()
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
-    
+
     if arg2.type == "var":
         arg2 = system.frames.get_var(arg2.value)
     if arg3.type == "var":
@@ -273,10 +316,12 @@ def i_add(system):
         type_error()
 
 def i_sub(system):
+    if len(system.instruction.arguments) != 3:
+        structure_error()
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
-    
+
     if arg2.type == "var":
         arg2 = system.frames.get_var(arg2.value)
     if arg3.type == "var":
@@ -288,6 +333,8 @@ def i_sub(system):
         type_error()
 
 def i_mul(system):
+    if len(system.instruction.arguments) != 3:
+        structure_error()
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
@@ -303,6 +350,8 @@ def i_mul(system):
         type_error()
 
 def i_idiv(system):
+    if len(system.instruction.arguments) != 3:
+        structure_error()
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
@@ -321,6 +370,8 @@ def i_idiv(system):
         type_error()
 
 def i_lt(system):
+    if len(system.instruction.arguments) != 3:
+        structure_error()
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
@@ -339,6 +390,8 @@ def i_lt(system):
         type_error()
 
 def i_gt(system):
+    if len(system.instruction.arguments) != 3:
+        structure_error()
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
@@ -357,6 +410,8 @@ def i_gt(system):
         type_error()
 
 def i_eq(system):
+    if len(system.instruction.arguments) != 3:
+        structure_error()
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
@@ -375,6 +430,8 @@ def i_eq(system):
         type_error()
 
 def i_and(system):
+    if len(system.instruction.arguments) != 3:
+        structure_error()
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
@@ -390,6 +447,8 @@ def i_and(system):
         type_error()
 
 def i_or(system):
+    if len(system.instruction.arguments) != 3:
+        structure_error()
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
@@ -405,6 +464,8 @@ def i_or(system):
         type_error()
 
 def i_not(system):
+    if len(system.instruction.arguments) != 2:
+        structure_error()
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
 
@@ -417,6 +478,8 @@ def i_not(system):
         type_error()
 
 def i_int2char(system):
+    if len(system.instruction.arguments) != 2:
+        structure_error()
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
 
@@ -432,6 +495,8 @@ def i_int2char(system):
         type_error()
 
 def i_stri2int(system):
+    if len(system.instruction.arguments) != 3:
+        structure_error()
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
@@ -450,6 +515,8 @@ def i_stri2int(system):
         type_error()
 
 def i_read(system):
+    if len(system.instruction.arguments) != 2:
+        structure_error()
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
 
@@ -460,16 +527,31 @@ def i_read(system):
             data.value = system.program.input.popleft()
         except IndexError:
             data.type = "nil"
-            data.value = "nil"
+            data.value = None
     else:
         data.value = input()  
-    
-    data.convert_type()
+
+    if data.type == "int":
+        try:
+            data.value = int(data.value)
+        except:
+            data.type = "nil"
+            data.value = None
+    elif data.type == "bool":
+        if data.value.lower() == "true":
+            data.value = True
+        else:
+            data.value = False
+    elif data.type == "string":
+        data.convert_escaped_ascii()
+
     system.frames.update_var(arg1.value, data.type, data.value)
 
 def i_write(system):
+    if len(system.instruction.arguments) != 1:
+        structure_error()
     arg1 = system.instruction.arguments[0]
-
+        
     if arg1.type == "var":
         arg1 = system.frames.get_var(arg1.value)
     if arg1.type == "bool":
@@ -483,6 +565,8 @@ def i_write(system):
         print(arg1.value, end='')
 
 def i_concat(system):
+    if len(system.instruction.arguments) != 3:
+        structure_error()
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
@@ -498,8 +582,10 @@ def i_concat(system):
         type_error()
 
 def i_strlen(system):
+    if len(system.instruction.arguments) != 1:
+        structure_error()
     arg1 = system.instruction.arguments[0]
-
+        
     if arg1.type == "var":
         arg1 = system.frames.get_var(arg1.value)
     if arg1.type == "string":
@@ -510,6 +596,8 @@ def i_strlen(system):
     
 
 def i_getchar(system):
+    if len(system.instruction.arguments) != 3:
+        structure_error()
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
@@ -528,6 +616,8 @@ def i_getchar(system):
         type_error()
 
 def i_setchar(system):
+    if len(system.instruction.arguments) != 3:
+        structure_error()
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
@@ -549,23 +639,36 @@ def i_setchar(system):
         type_error()
 
 def i_type(system):
+    if len(system.instruction.arguments) != 2:
+        structure_error()
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
 
     if arg2.type == "var":
         arg2 = system.frames.get_var(arg2.value)
     result = arg2.type
-    system.frames.update_var(arg1.value, "bool", result)
+    system.frames.update_var(arg1.value, "type", result)
     
 def i_label(system):
+    if len(system.instruction.arguments) != 1:
+        structure_error()
     arg1 = system.instruction.arguments[0]
+ 
+    if not arg1.value in system.program.labels:
+        system.program.labels.append(arg1.value)
+    else:
+        code_semantic_error()
 
 def i_jump(system):
+    if len(system.instruction.arguments) != 1:
+        structure_error()
     arg1 = system.instruction.arguments[0]
-
+        
     system.program.jump_to_label(arg1.value)
 
 def i_jumpifeq(system):
+    if len(system.instruction.arguments) != 3:
+        structure_error()
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
@@ -581,6 +684,8 @@ def i_jumpifeq(system):
         type_error()
 
 def i_jumpifneq(system):
+    if len(system.instruction.arguments) != 3:
+        structure_error()
     arg1 = system.instruction.arguments[0]
     arg2 = system.instruction.arguments[1]
     arg3 = system.instruction.arguments[2]
@@ -596,9 +701,10 @@ def i_jumpifneq(system):
         type_error()    
 
 def i_exit(system):
-    
+    if len(system.instruction.arguments) != 1:
+        structure_error()
     arg1 = system.instruction.arguments[0]
-
+        
     if arg1.type == "var":
         arg1 = system.frames.get_var(arg1.value)
     if arg1.type == "int":
@@ -610,8 +716,10 @@ def i_exit(system):
         type_error()
 
 def i_dprint(system):
+    if len(system.instruction.arguments) != 1:
+        structure_error()
     arg1 = system.instruction.arguments[0]
-
+        
     if arg1.type == "var":
         arg1 = system.frames.get_var(arg1.value)
     if arg1.type == "bool":
@@ -629,8 +737,8 @@ def i_break(system):
     print("\n\nActual instruction number:", actual_instruction.attrib["order"], file=sys.stderr)
     print("Actual instruciton name:", actual_instruction.attrib["opcode"], file=sys.stderr)
     print("Actual content in frames:",
-          "\n Global frame:\n", system.frames.global_frame,
-          "\n\n Local frame:\n", system.frames.local_frame,
+          "\n Global frame:\n", system.frames.global_frame, 
+          "\n\n Local frame:\n", system.frames.get_local_frame(), 
           "\n\n Temporary frame:\n", system.frames.tmp_frame,
           "\n", file=sys.stderr)
 
@@ -706,17 +814,76 @@ def parse_souce(source_path):
     try:
         if args.source:
             if os.path.isfile(args.source):
-                parsed_source = ET.parse(args.source)
+                parsed_source = etree.parse(args.source)
             else:
                 sys.exit()
         else:
-            parsed_source = ET.parse(sys.stdin)
+            parsed_source = etree.parse(sys.stdin)
     except SystemExit:
         file_error()
     except:
         parse_error()
 
     return parsed_source
+
+def validate_source(parsed_source):
+    schema = StringIO('''\
+    <xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:element name="program">
+        <xs:complexType>
+        <xs:sequence>
+            <xs:element maxOccurs="unbounded" name="instruction">
+            <xs:complexType>
+                <xs:all minOccurs="0" maxOccurs="1">
+                <xs:element name="arg1">
+                    <xs:complexType>
+                    <xs:simpleContent>
+                        <xs:extension base="xs:string">
+                        <xs:attribute name="type" type="xs:string" use="required" />
+                        </xs:extension>
+                    </xs:simpleContent>
+                    </xs:complexType>
+                </xs:element>
+                <xs:element minOccurs="0" name="arg2">
+                    <xs:complexType>
+                    <xs:simpleContent>
+                        <xs:extension base="xs:string">
+                        <xs:attribute name="type" type="xs:string" use="required" />
+                        </xs:extension>
+                    </xs:simpleContent>
+                    </xs:complexType>
+                </xs:element>
+                <xs:element minOccurs="0" name="arg3">
+                    <xs:complexType>
+                    <xs:simpleContent>
+                        <xs:extension base="xs:string">
+                        <xs:attribute name="type" type="xs:string" use="required" />
+                        </xs:extension>
+                    </xs:simpleContent>
+                    </xs:complexType>
+                </xs:element>
+                </xs:all>
+                <xs:attribute name="order" type="xs:positiveInteger" use="required" />
+                <xs:attribute name="opcode" type="xs:string" use="required" />
+            </xs:complexType>
+            </xs:element>
+        </xs:sequence>
+        <xs:attribute name="language" type="xs:string" use="required" />
+        <xs:attribute name="name" type="xs:string" use="optional" />
+        <xs:attribute name="description" type="xs:string" use="optional" />
+        </xs:complexType>
+        <xs:unique name="UniqueOrder">
+            <xs:selector xpath="instruction" /> 
+            <xs:field xpath="@order" /> 
+        </xs:unique>
+    </xs:element>
+    </xs:schema>
+    ''')
+    parsed_schema = etree.parse(schema)
+    xmlschema = etree.XMLSchema(parsed_schema)
+    if not xmlschema.validate(parsed_source):
+        print(xmlschema.error_log.last_error, file=sys.stderr)
+        structure_error()
 
 def get_input(input_path):
 
@@ -738,6 +905,7 @@ args = parse_arguments()
 parsed_source = parse_souce(args.source)
 program_input = get_input(args.input)
 
+validate_source(parsed_source)
 unsorted_program = parsed_source.getroot()
 program = sorted(unsorted_program, key=get_order)
 

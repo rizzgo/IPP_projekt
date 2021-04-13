@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <program language="IPPcode21">
- <instruction order="11" opcode="DEFVAR">
+ <instruction order="1" opcode="DEFVAR">
    <arg1 type="var">GF@counter</arg1>
  </instruction>
  <instruction order="12" opcode="ADD">
@@ -25,8 +25,8 @@
  </instruction>
  <instruction order="16" opcode="LT">
    <arg1 type="var">GF@counter</arg1>
-   <arg2 type="string">5</arg2>
-   <arg3 type="string">3</arg3>
+   <arg2 type="string">hi</arg2>
+   <arg3 type="string">hello3</arg3>
  </instruction>
  <instruction order="17" opcode="GT">
    <arg1 type="var">GF@counter</arg1>
@@ -43,12 +43,12 @@
    <arg2 type="bool">true</arg2>
    <arg3 type="bool">true</arg3>
  </instruction>
- <instruction order="110" opcode="OR">
+ <instruction order="129" opcode="OR">
    <arg1 type="var">GF@counter</arg1>
    <arg2 type="bool">true</arg2>
    <arg3 type="bool">true</arg3>
  </instruction>
- <instruction order="111" opcode="NOT">
+ <instruction order="127" opcode="NOT">
    <arg1 type="var">GF@counter</arg1>
    <arg2 type="bool">false</arg2>
  </instruction>
@@ -67,18 +67,18 @@
 <instruction order="116" opcode="LABEL">
    <arg1 type="label">imhere</arg1>
  </instruction>
-<instruction order="116" opcode="WRITE">
+<instruction order="117" opcode="WRITE">
    <arg1 type="string">\010</arg1>
  </instruction>
-<instruction order="117" opcode="WRITE">
+<instruction order="118" opcode="WRITE">
    <arg1 type="var">GF@counter</arg1>
  </instruction>
-<instruction order="118" opcode="BREAK">
+<instruction order="119" opcode="BREAK">
  </instruction>
-<instruction order="118" opcode="LABEL">
-   <arg1 type="label">imhere</arg1>
+<instruction order="10" opcode="LABEL">
+   <arg1 type="label">nothere</arg1>
  </instruction>
- <instruction order="119" opcode="EXIT">
+ <instruction order="120" opcode="EXIT">
    <arg1 type="int">5</arg1>
  </instruction>
 </program>
