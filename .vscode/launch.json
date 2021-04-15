@@ -29,7 +29,7 @@
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "args" : ["--input=tmp.out"],
+            "args" : ["--input=xmlinput.in"],
             "console": "integratedTerminal"
         },
     ]

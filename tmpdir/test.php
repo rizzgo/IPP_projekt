@@ -21,7 +21,126 @@
  $args data about arguments
  $dir_output output data from tested directory
  */ 
-function run_parser_test(&$src_file, array &$args) : bool {
+function run_both_test($src_file, array $args) : bool {
+    $test_name = $src_file->getBasename('.src');
+    $dir_path = $src_file->getPath();
+    $no_extension_path = $dir_path . '/' . $test_name;
+
+    $exit_code = -1;
+    $diff_exit_code = -1;
+    $out = null;
+    $ref_exit_code = "";
+    
+    $input_path = $no_extension_path . '.in';
+    $ref_output_path = $no_extension_path . '.out';
+    $ref_exit_code_path = $no_extension_path . '.rc';
+    $source_path = $no_extension_path . '.src';
+    
+    if (!is_file($input_path)) {
+        $in = fopen($input_path, "w") or die("Unable to open file!");
+        fclose($in);
+    }
+    if (!is_file($ref_output_path)) {
+        $out = fopen($ref_output_path, "w") or die("Unable to open file!");
+        fclose($out);
+    }
+    if (!is_file($ref_exit_code_path)) {
+        $rc = fopen($ref_exit_code_path, "w") or die("Unable to open file!");
+        fwrite($rc, "0");
+        fclose($rc);
+    }
+
+    $ref_exit_code = file_get_contents($ref_exit_code_path);
+
+    exec('php7.4 ' . $args['parser_path'] . ' < ' . $source_path . ' > tmpxml.out', $out, $exit_code);
+    exec('python3.8 ' . $args['interpret_path'] . ' --source=' . 'tmpxml.out' . ' --input=' . $input_path . ' > tmp.out', $out, $exit_code);
+    if ($ref_exit_code == $exit_code) {
+        if ($exit_code == 0) {
+            exec('diff' . ' tmp.out ' . $ref_output_path, $out, $diff_exit_code);
+            if ($diff_exit_code == 0) {
+                return true;
+            }
+            else {
+                echo "<h4>" . $no_extension_path ." | invalid output</h4>\n";
+                return false;
+            }
+        }
+        else {
+            return true;
+        }
+    }
+    echo "<h4>" . $no_extension_path ." | exit code: ".$exit_code." valid: ".$ref_exit_code; "</h4>\n";
+    return false;
+}
+
+/*
+ Runs one test with name from .src file
+ 
+ parameters:
+ $src_file data about tested file with .src extension
+ $args data about arguments
+ $dir_output output data from tested directory
+ */ 
+function run_int_test($src_file, array $args) : bool {
+    $test_name = $src_file->getBasename('.src');
+    $dir_path = $src_file->getPath();
+    $no_extension_path = $dir_path . '/' . $test_name;
+
+    $exit_code = -1;
+    $diff_exit_code = -1;
+    $out = null;
+    $ref_exit_code = "";
+    
+    $input_path = $no_extension_path . '.in';
+    $ref_output_path = $no_extension_path . '.out';
+    $ref_exit_code_path = $no_extension_path . '.rc';
+    $source_path = $no_extension_path . '.src';
+    
+    if (!is_file($input_path)) {
+        $in = fopen($input_path, "w") or die("Unable to open file!");
+        fclose($in);
+    }
+    if (!is_file($ref_output_path)) {
+        $out = fopen($ref_output_path, "w") or die("Unable to open file!");
+        fclose($out);
+    }
+    if (!is_file($ref_exit_code_path)) {
+        $rc = fopen($ref_exit_code_path, "w") or die("Unable to open file!");
+        fwrite($rc, "0");
+        fclose($rc);
+    }
+
+    $ref_exit_code = file_get_contents($ref_exit_code_path);
+
+    exec('python3.8 ' . $args['interpret_path'] . ' --source=' . $source_path . ' --input=' . $input_path . ' > tmp.out', $out, $exit_code);
+    if ($ref_exit_code == $exit_code) {
+        if ($exit_code == 0) {
+            exec('diff' . ' tmp.out ' . $ref_output_path, $out, $diff_exit_code);
+            if ($diff_exit_code == 0) {
+                return true;
+            }
+            else {
+                echo "<h4>" . $no_extension_path ." | invalid output</h4>\n";
+                return false;
+            }
+        }
+        else {
+            return true;
+        }
+    }
+    echo "<h4>" . $no_extension_path ." | exit code: ".$exit_code." valid: ".$ref_exit_code; "</h4>\n";
+    return false;
+}
+
+/*
+ Runs one test with name from .src file
+ 
+ parameters:
+ $src_file data about tested file with .src extension
+ $args data about arguments
+ $dir_output output data from tested directory
+ */ 
+function run_parser_test($src_file, array $args) : bool {
     $test_name = $src_file->getBasename('.src');
     $dir_path = $src_file->getPath();
     $no_extension_path = $dir_path . '/' . $test_name;
@@ -29,18 +148,31 @@ function run_parser_test(&$src_file, array &$args) : bool {
     $exit_code = -1;
     $xml_exit_code = -1;
     $out = null;
-    $test_arguments = ""; $ref_exit_code = "";
-    $ref_output_path = ""; 
+    $ref_exit_code = "";
 
-    if (is_file($no_extension_path . '.in'))
-        $test_arguments = file_get_contents($no_extension_path . '.in');
-    if (is_file($no_extension_path . '.rc'))
-        $ref_exit_code = file_get_contents($no_extension_path . '.rc');
-    
-    if (is_file($no_extension_path . '.out'))
-        $ref_output_path = $no_extension_path . '.out';
-    
-    exec('php7.4 ' . $args['parser_path'] . $test_arguments . ' < ' . $no_extension_path . '.src > tmp.out', $out, $exit_code);
+    $input_path = $no_extension_path . '.in';
+    $ref_output_path = $no_extension_path . '.out';
+    $ref_exit_code_path = $no_extension_path . '.rc';
+    $source_path = $no_extension_path . '.src'; 
+  
+    if (!is_file($input_path)) {
+        $in = fopen($input_path, "w") or die("Unable to open file!");
+        fclose($in);
+    }
+    if (!is_file($ref_output_path)) {
+        $out = fopen($ref_output_path, "w") or die("Unable to open file!");
+        fclose($out);
+    }
+    if (!is_file($ref_exit_code_path)) {
+        $rc = fopen($ref_exit_code_path, "w") or die("Unable to open file!");
+        fwrite($rc, "0");
+        fclose($rc);
+    }
+
+    $test_arguments = file_get_contents($input_path);
+    $ref_exit_code = file_get_contents($ref_exit_code_path);
+
+    exec('php7.4 ' . $args['parser_path'] . $test_arguments . ' < ' . $source_path . ' > tmp.out', $out, $exit_code);
     if ($ref_exit_code == $exit_code) {
         if ($exit_code == 0) {
             exec('java -jar ' . $args['jexam_path'] . ' tmp.out ' . $ref_output_path .
@@ -53,7 +185,7 @@ function run_parser_test(&$src_file, array &$args) : bool {
             return true;
         }
     }
-    echo "<h4>" . $no_extension_path . "</h4>";
+    echo "<h4>" . $no_extension_path . "</h4>\n";
     return false;
 }
 
@@ -65,8 +197,25 @@ function run_parser_test(&$src_file, array &$args) : bool {
  $args data about arguments
  $dir_output output data from tested directory
  */
-function search_directory(array &$args) {
+function search_directory(array $args) {
     $test_elements = new FileSystemIterator($args['tests_path']);
+    $actual_test_suite = basename($args['tests_path']);
+    switch ($actual_test_suite) {
+        case "both":
+            echo $actual_test_suite;
+            $args['test_suite'] = "all";
+            break;
+        case "parse-only":
+            echo $actual_test_suite;
+            $args['test_suite'] = "parse";
+            break;
+        case "interpret-only":
+            echo $actual_test_suite;
+            $args['test_suite'] = "int";
+            break;
+        default:
+            break;
+    }
     $tests = 0;
     $passed = 0;
     echo "<h2>" . $args['tests_path'] . "</h2>\n";
@@ -77,12 +226,25 @@ function search_directory(array &$args) {
         }
         else {
             if ($element->getExtension() == 'src') {
-                if(run_parser_test($element, $args)) $passed++;
+                switch ($args['test_suite']) {
+                    case "all":
+                        if(run_both_test($element, $args)) $passed++;
+                        break;
+                    case "parse":
+                        if(run_parser_test($element, $args)) $passed++;
+                        break;
+                    case "int":
+                        if(run_int_test($element, $args)) $passed++;
+                        break;
+                    default:
+                        break;
+                }
                 $tests++;
             }
         }
     }
     echo "<p>\n";
+    echo "---------------------------------------------<br>\n";
     echo "tests: " . $tests . "<br>\n";
     echo "passed: " . $passed . "\n";
     echo "</p>\n";
@@ -96,7 +258,7 @@ function search_directory(array &$args) {
  $arg_flags data about used script arguments
  $output_data output data from all directories
  */
-function run_testing(array &$args, array &$arg_flags) {
+function run_testing(array $args, array $arg_flags) {
     if (($arg_flags['parse_only'] && $arg_flags['int_active']) || ($arg_flags['int_only'] && $arg_flags['parse_active'])) {
         exit(41);
     }

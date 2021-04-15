@@ -1,6 +1,8 @@
 Archive:  xseipe00.zip
+  inflating: interpret.py            
   inflating: parse.php               
   inflating: readme1.pdf             
+  inflating: readme2.pdf             
   inflating: test.php                
 
 Skript parse.php nacte ze standardniho vstupu zdrojovy kod v IPPcode21,
@@ -11,6 +13,12 @@ vystup XML reprezentaci programu.
         Vypise na standardni vystup napovedu skriptu (nenacita zadni vstup).
 
 
+usage: interpret.py [-h] [--source= SOURCE] [--input= INPUT]
+
+optional arguments:
+  -h, --help        show this help message and exit
+  --source= SOURCE
+  --input= INPUT
 <!DOCTYPE html>
 <html>
 <head>
