@@ -35,7 +35,7 @@ class System:
             self.instruction.load(instruction)
             self.interpret_instruction()
 
-            self.program.instruction_ptr += 1    
+            self.program.instruction_ptr += 1
 
     def interpret_instruction(self):
         switcher = {
