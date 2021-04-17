@@ -41,15 +41,15 @@ function run_both_test($src_file, array $args, array &$dir_data) : bool {
     $source_path = $no_extension_path . '.src';
     
     if (!is_file($input_path)) {
-        $in = fopen($input_path, "w") or exit(41);
+        $in = fopen($input_path, "w") or exit(11);
         fclose($in);
     }
     if (!is_file($ref_output_path)) {
-        $out = fopen($ref_output_path, "w") or exit(41);
+        $out = fopen($ref_output_path, "w") or exit(11);
         fclose($out);
     }
     if (!is_file($ref_exit_code_path)) {
-        $rc = fopen($ref_exit_code_path, "w") or exit(41);
+        $rc = fopen($ref_exit_code_path, "w") or exit(11);
         fwrite($rc, "0");
         fclose($rc);
     }
@@ -108,15 +108,15 @@ function run_int_test($src_file, array $args, array &$dir_data) : bool {
     $source_path = $no_extension_path . '.src';
     
     if (!is_file($input_path)) {
-        $in = fopen($input_path, "w") or exit(41);
+        $in = fopen($input_path, "w") or exit(11);
         fclose($in);
     }
     if (!is_file($ref_output_path)) {
-        $out = fopen($ref_output_path, "w") or exit(41);
+        $out = fopen($ref_output_path, "w") or exit(11);
         fclose($out);
     }
     if (!is_file($ref_exit_code_path)) {
-        $rc = fopen($ref_exit_code_path, "w") or exit(41);
+        $rc = fopen($ref_exit_code_path, "w") or exit(11);
         fwrite($rc, "0");
         fclose($rc);
     }
@@ -174,15 +174,15 @@ function run_parser_test($src_file, array $args, array &$dir_data) : bool {
     $source_path = $no_extension_path . '.src'; 
   
     if (!is_file($input_path)) {
-        $in = fopen($input_path, "w") or exit(41);
+        $in = fopen($input_path, "w") or exit(11);
         fclose($in);
     }
     if (!is_file($ref_output_path)) {
-        $out = fopen($ref_output_path, "w") or exit(41);
+        $out = fopen($ref_output_path, "w") or exit(11);
         fclose($out);
     }
     if (!is_file($ref_exit_code_path)) {
-        $rc = fopen($ref_exit_code_path, "w") or exit(41);
+        $rc = fopen($ref_exit_code_path, "w") or exit(11);
         fwrite($rc, "0");
         fclose($rc);
     }
@@ -216,8 +216,7 @@ function run_parser_test($src_file, array $args, array &$dir_data) : bool {
 
 
 /*
- Looks for tests in directory from $args and runs right tests
- for actual directory. 
+ Looks for tests in directory from $args and runs right tests. 
  With script argument --recursive searches recursively.
  
  parameters:
@@ -227,7 +226,6 @@ function run_parser_test($src_file, array $args, array &$dir_data) : bool {
 function search_directory(array $args, array &$output_data) {
 
     $test_elements = new FileSystemIterator($args['tests_path']);
-    $actual_test_suite = basename($args['tests_path']);
     
     $dir_data = array(
         "path" => "<h2>" . $args['tests_path'] . "</h2>\n",
@@ -235,20 +233,6 @@ function search_directory(array $args, array &$output_data) {
         "tests" => 0,
         "passed" => 0
     );
-    
-    switch ($actual_test_suite) {
-        case "both":
-            $args['test_suite'] = "all";
-            break;
-        case "parse-only":
-            $args['test_suite'] = "parse";
-            break;
-        case "interpret-only":
-            $args['test_suite'] = "int";
-            break;
-        default:
-            break;
-    }
 
     foreach ($test_elements as $element_path => $element) {
         if ($element->isDir() && $args['recursive']) {
@@ -384,7 +368,7 @@ function parse_arguments(array &$arg_flags, array &$args, int $argc, array $argv
 
 
 /*
- Sets and controls everything before testing, than runs it.
+ Controls arguments before testing and runs it.
 
  parameters:
  $args program arguments
@@ -401,22 +385,14 @@ function run_testing(array $args, array $arg_flags) : array {
         exit(10);
     }
 
-    switch ($args['test_suite']) {
-        case "all":
-            break;
-        case "parse":
-            if (is_dir("parse-only")) {
-                $args['tests_path'] = preg_replace("#/+$#", "/parse-only", $args['tests_path']);
-            }
-            break;
-        case "int":
-            if (is_dir("interpret-only")) {
-                $args['tests_path'] = preg_replace("#/+$#", "/interpret-only", $args['tests_path']);
-            }
-            break;
-        default:
-            exit(41);
-    }
+    if (!is_file($args["parser_path"]))
+        exit(41);
+    if (!is_file($args["interpret_path"]))
+        exit(41);
+    if (!is_file($args["jexam_path"]))
+        exit(41);
+    if (!is_file($args["jexam_opt_path"]))
+        exit(41);
 
     if (is_dir($args['tests_path'])) {
         search_directory($args, $output_data);
@@ -460,9 +436,12 @@ function print_output(array $output_data) {
  Deletes temporary files
  */
 function delete_tmp_files() {
-    unlink("testphp_tmp.out");
-    unlink("testphp_tmpxml.out");
-    unlink("testphp_difffile.xml");
+    if (is_file("testphp_tmp.out"))       
+        unlink("testphp_tmp.out");
+    if (is_file("testphp_tmpxml.out"))    
+        unlink("testphp_tmpxml.out");
+    if (is_file("testphp_difffile.xml"))
+        unlink("testphp_difffile.xml");
 }
 
 
