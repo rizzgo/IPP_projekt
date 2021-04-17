@@ -76,7 +76,7 @@ class System:
             "BREAK": i_break
         }
             
-        function = switcher.get(self.instruction.opcode)
+        function = switcher.get(self.instruction.opcode.upper())
         if function:
             function(self)
         else:
